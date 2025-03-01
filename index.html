@@ -38,23 +38,17 @@
             font-size: 16px;
             cursor: pointer;
         }
-        .hint {
-            color: var(--tg-theme-hint-color, #999999);
-            font-size: 14px;
-            margin-top: 10px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Выберите дату отгула</h2>
-        <input type="date" id="datePicker" min="">
+        <input type="date" id="datePicker">
         <br>
-        <button onclick="submitDate()">Подтвердить</button>
-        <p class="hint">Выберите дату и нажмите "Подтвердить"</p>
+        <button onclick="sendDate()">Подтвердить</button>
     </div>
 
     <script>
+        // Инициализация Telegram WebApp
         let tg = window.Telegram.WebApp;
         tg.expand();
         
@@ -66,18 +60,23 @@
         today = yyyy + '-' + mm + '-' + dd;
         document.getElementById('datePicker').setAttribute('min', today);
         
-        function submitDate() {
-            let selectedDate = document.getElementById('datePicker').value;
-            if (selectedDate) {
-                // Форматируем дату в более читаемый вид
-                let date = new Date(selectedDate);
-                let formattedDate = date.toLocaleDateString('ru-RU', {
+        function sendDate() {
+            const datePicker = document.getElementById('datePicker');
+            if (datePicker.value) {
+                const date = new Date(datePicker.value);
+                const formattedDate = date.toLocaleDateString('ru-RU', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
                 });
+                tg.MainButton.setText('Готово');
+                tg.MainButton.show();
+                // Отправляем данные в бота
                 tg.sendData(formattedDate);
-                tg.close();
+                // Закрываем веб-приложение
+                setTimeout(() => {
+                    tg.close();
+                }, 100);
             } else {
                 alert('Пожалуйста, выберите дату');
             }
