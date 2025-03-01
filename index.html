@@ -43,6 +43,11 @@
             cursor: pointer;
             width: 100%;
             max-width: 240px;
+            transition: opacity 0.3s ease;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         .status {
             margin-top: 15px;
@@ -51,10 +56,7 @@
             color: var(--tg-theme-hint-color, #999999);
             min-height: 40px;
             border-radius: 8px;
-        }
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -70,30 +72,36 @@
         let tg = window.Telegram.WebApp;
         let submitButton = document.getElementById('submitButton');
         let datePicker = document.getElementById('datePicker');
-        
+        let statusDiv = document.getElementById('status');
+
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
             try {
+                console.log('Инициализация WebApp...');
                 tg.ready();
                 tg.expand();
-                
+
                 // Установка минимальной даты (сегодня)
                 let today = new Date();
                 let dd = String(today.getDate()).padStart(2, '0');
                 let mm = String(today.getMonth() + 1).padStart(2, '0');
                 let yyyy = today.getFullYear();
                 let todayStr = `${yyyy}-${mm}-${dd}`;
+                
                 datePicker.setAttribute('min', todayStr);
+                console.log('Минимальная дата установлена:', todayStr);
                 
                 updateStatus('Готово к выбору даты');
             } catch (error) {
-                console.error('Ошибка инициализации:', error);
+                console.error('Ошибка при инициализации:', error);
                 updateStatus('Ошибка инициализации: ' + error.message);
             }
         });
 
-        // Функция отправки даты
+        // Основная функция отправки даты
         function sendDate() {
+            let datePicker = document.getElementById('datePicker');
+            let submitButton = document.getElementById('submitButton');
             let selectedDate = datePicker.value;
             
             if (!selectedDate) {
@@ -101,7 +109,6 @@
                 return;
             }
 
-            // Отключаем кнопку на время отправки
             submitButton.disabled = true;
             updateStatus('Подготовка данных...');
             
@@ -114,50 +121,85 @@
                 }).format(date);
                 
                 updateStatus('Отправка данных: ' + formattedDate);
-                console.log('Отправляемая дата:', formattedDate);
+                console.log('Отправка даты в бот:', formattedDate);
 
-                // Отправляем данные в бот
-                tg.sendData(formattedDate);
-                updateStatus('Данные успешно отправлены');
-                
-                // Закрываем веб-приложение через задержку
-                setTimeout(() => {
-                    updateStatus('Закрытие приложения...');
-                    tg.close();
-                }, 1000);
+                // Проверка инициализации WebApp
+                if (!tg.initDataUnsafe) {
+                    throw new Error('WebApp не инициализирован');
+                }
+
+                // Отправка данных
+                try {
+                    tg.sendData(formattedDate);
+                    updateStatus('Данные успешно отправлены');
+                    console.log('Данные отправлены успешно');
+                    
+                    // Задержка перед закрытием
+                    setTimeout(() => {
+                        updateStatus('Закрытие приложения...');
+                        try {
+                            tg.close();
+                        } catch (closeError) {
+                            console.error('Ошибка при закрытии:', closeError);
+                            updateStatus('Ошибка при закрытии приложения');
+                        }
+                    }, 1500);
+                    
+                } catch (sendError) {
+                    console.error('Ошибка при отправке:', sendError);
+                    updateStatus('Ошибка отправки: ' + sendError.message);
+                    submitButton.disabled = false;
+                }
                 
             } catch (error) {
-                console.error('Ошибка при отправке:', error);
+                console.error('Общая ошибка:', error);
                 updateStatus('Ошибка: ' + error.message);
                 submitButton.disabled = false;
             }
         }
 
-        // Функция обновления статуса
+        // Вспомогательная функция для обновления статуса
         function updateStatus(message) {
-            const statusDiv = document.getElementById('status');
             statusDiv.textContent = message;
-            console.log('Status:', message);
+            console.log('Статус:', message);
         }
 
-        // Обработка нажатия Enter на поле ввода даты
+        // Обработчик нажатия Enter
         datePicker.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !submitButton.disabled) {
                 sendDate();
             }
         });
 
-        // Обработка изменения даты
+        // Обработчик изменения даты
         datePicker.addEventListener('change', function() {
             if (this.value) {
-                updateStatus('Дата выбрана: ' + this.value);
+                let date = new Date(this.value);
+                let formattedDate = new Intl.DateTimeFormat('ru-RU', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }).format(date);
+                updateStatus('Выбрана дата: ' + formattedDate);
             }
         });
 
-        // Обработка ошибок
+        // Глобальный обработчик ошибок
         window.addEventListener('error', function(event) {
-            console.error('Global error:', event.error);
+            console.error('Глобальная ошибка:', event.error);
             updateStatus('Ошибка: ' + event.error.message);
+        });
+
+        // Обработчик потери соединения
+        window.addEventListener('offline', function() {
+            updateStatus('Отсутствует подключение к интернету');
+            submitButton.disabled = true;
+        });
+
+        // Обработчик восстановления соединения
+        window.addEventListener('online', function() {
+            updateStatus('Подключение восстановлено');
+            submitButton.disabled = false;
         });
     </script>
 </body>
