@@ -69,6 +69,13 @@
     </div>
 
     <script>
+        // Проверка доступности Telegram WebApp
+        if (!window.Telegram || !window.Telegram.WebApp) {
+            console.error('Telegram WebApp не доступен!');
+            document.getElementById('status').textContent = 'Ошибка: Telegram WebApp не доступен';
+            document.getElementById('submitButton').disabled = true;
+        }
+
         let tg = window.Telegram.WebApp;
         let submitButton = document.getElementById('submitButton');
         let datePicker = document.getElementById('datePicker');
@@ -78,15 +85,16 @@
         document.addEventListener('DOMContentLoaded', function() {
             try {
                 console.log('Инициализация WebApp...');
-                console.log('WebApp object:', tg);
-                console.log('WebApp version:', tg.version);
+                console.log('WebApp версия:', tg.version);
                 console.log('Platform:', tg.platform);
+                console.log('initDataUnsafe:', tg.initDataUnsafe);
                 
                 tg.ready();
                 tg.expand();
 
                 // Установка минимальной даты (сегодня)
                 let today = new Date();
+                today.setHours(0, 0, 0, 0);
                 let dd = String(today.getDate()).padStart(2, '0');
                 let mm = String(today.getMonth() + 1).padStart(2, '0');
                 let yyyy = today.getFullYear();
@@ -94,12 +102,12 @@
                 
                 datePicker.setAttribute('min', todayStr);
                 console.log('Минимальная дата установлена:', todayStr);
-                updateStatus('Готово к выбору даты');
                 
-                // Проверяем доступность методов
-                console.log('SendData method available:', typeof tg.sendData === 'function');
-                console.log('Close method available:', typeof tg.close === 'function');
+                // Проверка методов Telegram WebApp
+                console.log('SendData доступен:', typeof tg.sendData === 'function');
+                console.log('Close доступен:', typeof tg.close === 'function');
                 
+                updateStatus('Выберите дату отгула');
             } catch (error) {
                 console.error('Ошибка при инициализации:', error);
                 updateStatus('Ошибка инициализации: ' + error.message);
@@ -108,7 +116,7 @@
 
         function sendDate() {
             try {
-                console.log('Начало функции sendDate');
+                console.log('Начало отправки данных...');
                 let selectedDate = datePicker.value;
                 
                 if (!selectedDate) {
@@ -116,44 +124,50 @@
                     return;
                 }
 
-                console.log('Выбранная дата:', selectedDate);
                 submitButton.disabled = true;
-                updateStatus('Подготовка данных...');
+                updateStatus('Отправка данных...');
 
                 // Создаем объект с данными
                 const dataToSend = {
                     selected_date: selectedDate
                 };
-
+                
+                // Преобразуем в строку JSON и отправляем
+                const jsonData = JSON.stringify(dataToSend);
                 console.log('Подготовленные данные:', dataToSend);
-                console.log('JSON строка для отправки:', JSON.stringify(dataToSend));
+                console.log('JSON для отправки:', jsonData);
+
+                // Проверка метода sendData
+                if (typeof tg.sendData !== 'function') {
+                    throw new Error('Метод sendData недоступен');
+                }
 
                 // Отправка данных
                 try {
-                    console.log('Попытка отправки данных...');
-                    tg.sendData(JSON.stringify(dataToSend));
-                    console.log('sendData выполнен');
+                    console.log('Попытка отправки данных через WebApp...');
+                    tg.sendData(jsonData);
+                    console.log('Данные успешно отправлены');
                     updateStatus('Данные отправлены успешно!');
-                    
+
                     // Задержка перед закрытием
                     setTimeout(() => {
-                        console.log('Попытка закрытия WebApp...');
+                        console.log('Закрытие WebApp...');
                         try {
                             tg.close();
                         } catch (closeError) {
-                            console.error('Ошибка при закрытии:', closeError);
+                            console.error('Ошибка при закрытии WebApp:', closeError);
                             updateStatus('Ошибка при закрытии приложения');
                         }
                     }, 2000);
-                    
+
                 } catch (sendError) {
-                    console.error('Ошибка при отправке:', sendError);
+                    console.error('Ошибка при отправке данных:', sendError);
                     updateStatus('Ошибка отправки: ' + sendError.message);
                     submitButton.disabled = false;
                 }
-                
+
             } catch (error) {
-                console.error('Общая ошибка в sendDate:', error);
+                console.error('Общая ошибка:', error);
                 updateStatus('Ошибка: ' + error.message);
                 submitButton.disabled = false;
             }
@@ -161,15 +175,8 @@
 
         function updateStatus(message) {
             statusDiv.textContent = message;
-            console.log('Статус обновлен:', message);
+            console.log('Статус:', message);
         }
-
-        // Обработчик нажатия Enter
-        datePicker.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !submitButton.disabled) {
-                sendDate();
-            }
-        });
 
         // Обработчик изменения даты
         datePicker.addEventListener('change', function() {
@@ -181,12 +188,22 @@
                     day: 'numeric'
                 }).format(date);
                 updateStatus('Выбрана дата: ' + formattedDate);
+                console.log('Выбрана дата:', this.value, '(форматированная:', formattedDate, ')');
+                
+                // Активируем кнопку после выбора даты
+                submitButton.disabled = false;
             }
         });
 
-        // Глобальный обработчик ошибок
+        // Обработчик ошибок
         window.onerror = function(msg, url, line, col, error) {
-            console.error('Глобальная ошибка:', {msg, url, line, col, error});
+            console.error('Глобальная ошибка:', {
+                message: msg,
+                url: url,
+                line: line,
+                column: col,
+                error: error
+            });
             updateStatus('Произошла ошибка: ' + msg);
             return false;
         };
@@ -201,6 +218,13 @@
             updateStatus('Подключение восстановлено');
             submitButton.disabled = false;
         });
+
+        // Обработчик MainButton, если он доступен
+        if (tg.MainButton) {
+            tg.MainButton.setText('Подтвердить выбор');
+            tg.MainButton.show();
+            tg.MainButton.onClick(sendDate);
+        }
     </script>
 </body>
 </html>
