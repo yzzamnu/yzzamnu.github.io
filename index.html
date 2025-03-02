@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        /* Ваши текущие стили остаются без изменений */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             display: flex;
@@ -113,24 +114,30 @@
             updateStatus('Подготовка данных...');
             
             try {
+                // Форматируем дату для отображения пользователю
                 let date = new Date(selectedDate);
-                let formattedDate = new Intl.DateTimeFormat('ru-RU', {
+                let formattedDisplayDate = new Intl.DateTimeFormat('ru-RU', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
                 }).format(date);
                 
-                updateStatus('Отправка данных: ' + formattedDate);
-                console.log('Отправка даты в бот:', formattedDate);
+                // Создаем объект данных для отправки
+                const dataToSend = {
+                    selected_date: selectedDate // Отправляем в формате YYYY-MM-DD
+                };
+                
+                updateStatus('Отправка данных: ' + formattedDisplayDate);
+                console.log('Отправка данных:', dataToSend);
 
                 // Проверка инициализации WebApp
                 if (!tg.initDataUnsafe) {
                     throw new Error('WebApp не инициализирован');
                 }
 
-                // Отправка данных
+                // Отправка данных в формате JSON
                 try {
-                    tg.sendData(formattedDate);
+                    tg.sendData(JSON.stringify(dataToSend));
                     updateStatus('Данные успешно отправлены');
                     console.log('Данные отправлены успешно');
                     
