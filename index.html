@@ -2,102 +2,81 @@
 <html>
 <head>
     <title>Выбор даты отгула</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Стили остаются те же */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+        }
+        .container {
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+        }
+        input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid var(--tg-theme-button-color, #3390ec);
+            border-radius: 8px;
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            color: var(--tg-theme-text-color, #000000);
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <input type="date" id="datePicker">
-        <br>
-        <button id="submitButton">Подтвердить</button>
-        <div id="status" class="status"></div>
+        <h2>Выберите дату отгула</h2>
+        <input type="date" id="vacationDate" min="">
+        <button onclick="sendData()" id="submitButton" disabled>Подтвердить</button>
     </div>
 
     <script>
-        // Инициализация
         let tg = window.Telegram.WebApp;
-        let submitButton = document.getElementById('submitButton');
-        let datePicker = document.getElementById('datePicker');
-        let statusDiv = document.getElementById('status');
+        tg.expand();
 
-        // Проверяем доступность Telegram WebApp
-        if (!tg || !tg.ready) {
-            console.error('Telegram WebApp не инициализирован');
-            updateStatus('Ошибка: приложение не инициализировано');
-            submitButton.disabled = true;
-        } else {
-            console.log('Telegram WebApp доступен');
-            tg.ready();
-            tg.expand();
-        }
-
-        // Устанавливаем минимальную дату
+        // Устанавливаем минимальную дату (сегодня)
         const today = new Date();
-        const minDate = today.toISOString().split('T')[0];
-        datePicker.setAttribute('min', minDate);
+        const dateInput = document.getElementById('vacationDate');
+        dateInput.min = today.toISOString().split('T')[0];
 
-        // Функция отправки данных
-        function sendVacationDate() {
-            const selectedDate = datePicker.value;
-            if (!selectedDate) {
-                updateStatus('Выберите дату');
-                return;
-            }
-
-            try {
-                submitButton.disabled = true;
-                updateStatus('Отправка данных...');
-
-                const data = {
-                    selected_date: selectedDate
-                };
-
-                console.log('Отправляем данные:', data);
-                tg.sendData(JSON.stringify(data));
-                
-                updateStatus('Данные отправлены!');
-                
-                // Закрываем приложение через 1.5 секунды
-                setTimeout(() => {
-                    tg.close();
-                }, 1500);
-
-            } catch (error) {
-                console.error('Ошибка при отправке:', error);
-                updateStatus('Ошибка отправки: ' + error.message);
-                submitButton.disabled = false;
-            }
-        }
-
-        // Обновление статуса
-        function updateStatus(message) {
-            statusDiv.textContent = message;
-            console.log('Статус:', message);
-        }
-
-        // Обработчики событий
-        submitButton.addEventListener('click', sendVacationDate);
-        
-        datePicker.addEventListener('change', function() {
-            if (this.value) {
-                const date = new Date(this.value);
-                const formatted = new Intl.DateTimeFormat('ru-RU', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                }).format(date);
-                updateStatus('Выбрана дата: ' + formatted);
-                submitButton.disabled = false;
-            }
+        // Активируем кнопку только когда дата выбрана
+        dateInput.addEventListener('change', function() {
+            document.getElementById('submitButton').disabled = !this.value;
         });
 
-        // Инициализация начального состояния
-        submitButton.disabled = true;
-        updateStatus('Выберите дату отгула');
+        function sendData() {
+            const selectedDate = document.getElementById('vacationDate').value;
+            if (selectedDate) {
+                tg.sendData(JSON.stringify({
+                    selected_date: selectedDate
+                }));
+                tg.close();
+            }
+        }
+
+        // Включаем кнопку "Назад"
+        tg.BackButton.show();
+        tg.BackButton.onClick(() => tg.close());
     </script>
 </body>
 </html>
